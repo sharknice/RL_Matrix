@@ -109,7 +109,7 @@ namespace RLMatrix
             var smallestDim = Math.Min(h, w);
             var padding = smallestDim / 2;
 
-            _conv1 = Conv2d(1, _width, kernelSize: (smallestDim, smallestDim), stride: (1, 1), padding: (padding, padding));
+            _conv1 = Conv2d(1, _width, kernel_size: (smallestDim, smallestDim), stride: (1, 1), padding: (padding, padding));
 
             long outputHeight = CalculateConvOutputSize(h, smallestDim, stride: 1, padding: padding);
             long outputWidth = CalculateConvOutputSize(w, smallestDim, stride: 1, padding: padding);

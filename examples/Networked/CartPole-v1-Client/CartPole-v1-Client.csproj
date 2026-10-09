@@ -16,8 +16,8 @@
 		<PackageReference Include="HIC.System.Windows.Forms.DataVisualization" Version="1.0.1" />
 		<PackageReference Include="RLMatrix.Remote" Version="0.4.2" />
 		<PackageReference Include="System.Data.SqlClient" Version="4.8.6" />
-		<PackageReference Include="TorchSharp-cuda-windows" Version="0.102.2" />
-		<PackageReference Include="TorchVision" Version="0.102.2" />
+		<PackageReference Include="TorchSharp-cuda-windows" Version="0.107.0" />
+		<PackageReference Include="TorchVision" Version="0.107.0" />
 		<PackageReference Include="WinForms.DataVisualization" Version="1.8.0" />
 	</ItemGroup>
 

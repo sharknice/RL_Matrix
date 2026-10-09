@@ -194,7 +194,7 @@ namespace RLMatrix
             var padding = smallestDim / 2;
 
             // Convolutional layer to process 2D input.
-            conv1 = Conv2d(1, width, kernelSize: (smallestDim, smallestDim), stride: (1, 1), padding: (padding, padding));
+            conv1 = Conv2d(1, width, kernel_size: (smallestDim, smallestDim), stride: (1, 1), padding: (padding, padding));
 
             // Calculate input size for the fully connected layers after convolution and flattening.
             long output_height = CalculateConvOutputSize(h, smallestDim, stride: 1, padding: padding);

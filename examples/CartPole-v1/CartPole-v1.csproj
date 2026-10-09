@@ -2,7 +2,7 @@
 
   <PropertyGroup>
 	  <OutputType>exe</OutputType>
-	  <TargetFramework>net6.0-windows</TargetFramework>
+	  <TargetFramework>net10.0-windows7.0</TargetFramework>
 	  <ImplicitUsings>enable</ImplicitUsings>
 	  <UseWindowsForms>true</UseWindowsForms>
 	  <Nullable>enable</Nullable>
@@ -12,9 +12,16 @@
     <PackageReference Include="Gym.NET" Version="0.2.0" />
     <PackageReference Include="Gym.NET.Environments" Version="0.2.0" />
     <PackageReference Include="Gym.NET.Rendering.WinForm" Version="0.2.0" />
-    <PackageReference Include="OneOf" Version="3.0.263" />
-	<PackageReference Include="RLMatrix" Version="0.2.0" />
-	<PackageReference Include="RLMatrix.WinformsChart" Version="0.1.0" />
+  </ItemGroup>
+
+  <ItemGroup>
+    <ProjectReference Include="..\..\src\RLMatrix.Common.Remote\RLMatrix.Common.Remote.csproj" />
+    <ProjectReference Include="..\..\src\RLMatrix.Common\RLMatrix.Common.csproj" />
+    <ProjectReference Include="..\..\src\RLMatrix.Dashboard\RLMatrix.Dashboard.csproj" />
+    <ProjectReference Include="..\..\src\RLMatrix.Remote\RLMatrix.Remote.csproj" />
+    <ProjectReference Include="..\..\src\RLMatrix.Server\RLMatrix.Server.csproj" />
+    <ProjectReference Include="..\..\src\RLMatrix.Toolkit\RLMatrix.Toolkit.csproj" />
+    <ProjectReference Include="..\..\src\RLMatrix\RLMatrix.csproj" />
   </ItemGroup>
 
 

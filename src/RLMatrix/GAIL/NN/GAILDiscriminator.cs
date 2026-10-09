@@ -92,7 +92,7 @@ namespace RLMatrix.GAILNET
 
             var smallestDim = Math.Min(h, w);
 
-            conv1 = Conv2d(1, width, kernelSize: (smallestDim, smallestDim), stride: (1, 1));
+            conv1 = Conv2d(1, width, kernel_size: (smallestDim, smallestDim), stride: (1, 1));
 
             long output_height = CalculateConvOutputSize(h, smallestDim);
             long output_width = CalculateConvOutputSize(w, smallestDim);
