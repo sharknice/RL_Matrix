@@ -24,9 +24,10 @@ namespace RLMatrix.Agents.PPO.Implementations
         LRScheduler actorLrScheduler { get; set; }
         LRScheduler criticLrScheduler { get; set; }
         public IGAIL<T>? myGAIL { get; set; }
+        public RLMatrix.Agents.DQN.Domain.IBehavioralCloning<T>? myBC { get; set; }
 
         public PPOOptimize(PPOActorNet actorNet, PPOCriticNet criticNet, OptimizerHelper actorOptimizer, OptimizerHelper criticOptimizer,
-            PPOAgentOptions options, Device myDevice, int[] ActionSizes, (float min, float max)[] continuousActionBounds, LRScheduler actorLrScheduler, LRScheduler criticLrScheduler, IGAIL<T>? myGAIL)
+            PPOAgentOptions options, Device myDevice, int[] ActionSizes, (float min, float max)[] continuousActionBounds, LRScheduler actorLrScheduler, LRScheduler criticLrScheduler, IGAIL<T>? myGAIL, RLMatrix.Agents.DQN.Domain.IBehavioralCloning<T>? myBC = null)
         {
             this.actorNet = actorNet;
             this.criticNet = criticNet;
@@ -36,6 +37,7 @@ namespace RLMatrix.Agents.PPO.Implementations
             this.myDevice = myDevice;
             this.ActionSizes = ActionSizes;
             this.myGAIL = myGAIL;
+            this.myBC = myBC;
             this.actorLrScheduler = actorLrScheduler;
             this.criticLrScheduler = criticLrScheduler;
             this.continuousActionBounds = continuousActionBounds;
@@ -427,6 +429,19 @@ namespace RLMatrix.Agents.PPO.Implementations
             if (myGAIL != null && replayBuffer.Length > 0)
             {
                 myGAIL.OptimiseDiscriminator(replayBuffer);
+            }
+
+            // If behavioral cloning is provided, run supervised updates on expert demonstrations
+            if (myBC != null)
+            {
+                try
+                {
+                    myBC.TrainActor(actorNet, myDevice, ActionSizes, continuousActionBounds, myOptions);
+                }
+                catch (Exception)
+                {
+                    // swallow errors from BC to avoid breaking PPO training
+                }
             }
 
             if (replayBuffer.NumEpisodes < myOptions.BatchSize)
