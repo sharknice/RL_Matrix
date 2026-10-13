@@ -18,9 +18,9 @@ namespace RLMatrix.Agents.PPO.Implementations
         bool useRnn = false;
         private Dictionary<Guid, (Tensor?, Tensor?)?> memoriesStore = new();
 
-        public LocalDiscretePPOAgent(PPOAgentOptions options, int[] ActionSizes, OneOf<int, (int, int)> StateSizes)
+        public LocalDiscretePPOAgent(PPOAgentOptions options, int[] ActionSizes, OneOf<int, (int, int)> StateSizes, Agents.DQN.Domain.IBehavioralCloning<T>? behavioralCloning = null)
         {
-            _agent = PPOAgentFactory<T>.ComposeDiscretePPOAgent(options, ActionSizes, StateSizes);
+            _agent = PPOAgentFactory<T>.ComposeDiscretePPOAgent(options, ActionSizes, StateSizes, netProvider: null, gail: null, behavioralCloning: behavioralCloning);
             useRnn = options.UseRNN;
         }
 

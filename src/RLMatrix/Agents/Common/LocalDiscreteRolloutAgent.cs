@@ -34,11 +34,11 @@ namespace RLMatrix.Agents.Common
         /// </summary>
         /// <param name="options">The PPO agent options.</param>
         /// <param name="environments">The collection of environments.</param>
-        public LocalDiscreteRolloutAgent(PPOAgentOptions options, IEnumerable<IEnvironmentAsync<TState>> environments)
+        public LocalDiscreteRolloutAgent(PPOAgentOptions options, IEnumerable<IEnvironmentAsync<TState>> environments, RLMatrix.Agents.DQN.Domain.IBehavioralCloning<TState>? behavioralCloning = null)
         {
             _environments = environments.ToDictionary(env => Guid.NewGuid(), env => env);
             _ennvPairs = _environments.ToDictionary(pair => pair.Key, pair => new Episode<TState>());
-            _agent = new LocalDiscretePPOAgent<TState>(options, environments.First().actionSize, environments.First().stateSize);
+            _agent = new LocalDiscretePPOAgent<TState>(options, environments.First().actionSize, environments.First().stateSize, behavioralCloning);
         }
 
 
