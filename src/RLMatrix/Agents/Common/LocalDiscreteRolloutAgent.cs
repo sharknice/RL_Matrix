@@ -2,6 +2,7 @@
 using RLMatrix.Agents.PPO.Implementations;
 using System;
 using System.Collections.Concurrent;
+using System.Reflection;
 using System.Collections.Generic;
 using System.Linq;
 using System.Threading.Tasks;
@@ -17,6 +18,7 @@ namespace RLMatrix.Agents.Common
         protected readonly Dictionary<Guid, IEnvironmentAsync<TState>> _environments;
         protected readonly Dictionary<Guid, Episode<TState>> _ennvPairs;
         protected readonly IDiscreteProxy<TState> _agent;
+        private readonly RLMatrix.Agents.DQN.Domain.IBehavioralCloning<TState>? _behavioralCloning;
         /// <summary>
         /// Initializes a new instance of the <see cref="LocalDiscreteRolloutAgent{TState}"/> class with DQN agent options.
         /// </summary>
@@ -29,6 +31,12 @@ namespace RLMatrix.Agents.Common
             _agent = new LocalDiscreteQAgent<TState>(options, environments.First().actionSize, environments.First().stateSize);
         }
 
+        // Backwards-compatible Step overload for projects expecting the original signature
+        public Task Step(bool isTraining = true)
+        {
+            return Step(isTraining, false);
+        }
+
         /// <summary>
         /// Initializes a new instance of the <see cref="LocalDiscreteRolloutAgent{TState}"/> class with PPO agent options.
         /// </summary>
@@ -39,6 +47,7 @@ namespace RLMatrix.Agents.Common
             _environments = environments.ToDictionary(env => Guid.NewGuid(), env => env);
             _ennvPairs = _environments.ToDictionary(pair => pair.Key, pair => new Episode<TState>());
             _agent = new LocalDiscretePPOAgent<TState>(options, environments.First().actionSize, environments.First().stateSize, behavioralCloning);
+            _behavioralCloning = behavioralCloning;
         }
 
 
@@ -47,7 +56,7 @@ namespace RLMatrix.Agents.Common
         /// </summary>
         /// <param name="isTraining">Indicates whether the agent is in training mode.</param>
         /// <returns>A task representing the asynchronous operation.</returns>
-        public async Task Step(bool isTraining = true)
+        public async Task Step(bool isTraining = true, bool behaviorCloning = false)
         {
             List<Task<(Guid environmentId, TState state)>> stateTaskList = new List<Task<(Guid environmentId, TState state)>>();
             foreach (var env in _environments)
@@ -58,7 +67,60 @@ namespace RLMatrix.Agents.Common
             var stateResults = await Task.WhenAll(stateTaskList);
 
             List<(Guid environmentId, TState state)> payload = stateResults.ToList();
-            var actions = await _agent.SelectActionsBatchAsync(payload, isTraining);
+            Dictionary<Guid, int[]> actions;
+
+            if (behaviorCloning && _behavioralCloning != null)
+            {
+                actions = new Dictionary<Guid, int[]>();
+                // For each environment, attempt to call an expert action method decorated with RLMatrixExpertActionDiscreteAttribute
+                foreach (var (envId, state) in payload)
+                {
+                    var env = _environments[envId];
+                    var envObj = env;
+                        var method = envObj.GetType().GetMethods(BindingFlags.Instance | BindingFlags.Public | BindingFlags.NonPublic)
+                        .FirstOrDefault(m => m.GetCustomAttributes(true).Any(a => a.GetType().Name == "RLMatrixExpertActionDiscreteAttribute"));
+
+                    if (method != null)
+                    {
+                        object? result = null;
+                        var parameters = method.GetParameters();
+                        if (parameters.Length == 0)
+                        {
+                            result = method.Invoke(envObj, null);
+                        }
+                        else if (parameters.Length == 1 && parameters[0].ParameterType.IsAssignableFrom(state?.GetType()))
+                        {
+                            result = method.Invoke(envObj, new object[] { state });
+                        }
+
+                        if (result is int single)
+                        {
+                            actions[envId] = new int[] { single };
+                        }
+                        else if (result is int[] arr)
+                        {
+                            actions[envId] = arr;
+                        }
+                        else
+                        {
+                            // fallback to random action if expert method returned unexpected type
+                            actions[envId] = Enumerable.Range(0, env.actionSize.Length).Select(i => 0).ToArray();
+                        }
+                    }
+                    else
+                    {
+                        // no expert method, fallback to agent
+                        // call agent select for this single state
+                        var single = await _agent.SelectActionsBatchAsync(new List<(Guid, TState)> { (envId, state) }, isTraining);
+                        actions[envId] = single[envId];
+                    }
+                }
+            }
+            else
+            {
+                var selected = await _agent.SelectActionsBatchAsync(payload, isTraining);
+                actions = selected;
+            }
 
             List<Task<(Guid environmentId, (float, bool) reward)>> rewardTaskList = new List<Task<(Guid environmentId, (float, bool) reward)>>();
             foreach (var action in actions)
@@ -100,6 +162,13 @@ namespace RLMatrix.Agents.Common
                     foreach (var transition in episode.CompletedEpisodes)
                     {
                         transitionsToShip.Add(transition);
+                        // If behavior cloning is active, also add to expert demonstrations memory
+                        if (behaviorCloning && _behavioralCloning != null)
+                        {
+                            var inMem = episode.CompletedEpisodes.ToTransitionInMemory();
+                            _behavioralCloning.ExpertDemonstrations.Push(inMem);
+                            break; // we've pushed the episode, avoid pushing repeatedly per transition
+                        }
                     }
                     rewards.Add(episode.cumulativeReward);
                     episode.CompletedEpisodes.Clear();

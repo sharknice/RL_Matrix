@@ -62,4 +62,14 @@ namespace RLMatrix.Toolkit
         public string Description { get; }
         public RLMatrixActionDescriptionAttribute(string description) => Description = description;
     }
+
+    [AttributeUsage(AttributeTargets.Method)]
+    public class RLMatrixExpertActionDiscreteAttribute : Attribute
+    {
+        public int ActionSize { get; }
+        public RLMatrixExpertActionDiscreteAttribute(int actionSize = -1)
+        {
+            ActionSize = actionSize;
+        }
+    }
 }

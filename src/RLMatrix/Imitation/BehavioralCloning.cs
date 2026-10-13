@@ -20,6 +20,8 @@ namespace RLMatrix.Imitation
             this.batchSize = Math.Max(1, batchSize);
         }
 
+        public IMemory<T> ExpertDemonstrations => expertDemonstrations;
+
         public void TrainActor(RLMatrix.PPOActorNet actorNet, TorchSharp.torch.Device device, int[] actionSizes, (float, float)[] continuousActionBounds, PPOAgentOptions options)
         {
             if (expertDemonstrations == null || expertDemonstrations.Length == 0)

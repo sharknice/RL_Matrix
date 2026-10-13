@@ -56,6 +56,12 @@ namespace RLMatrix.Toolkit
                     GetAttributeArgument<int>(m, "RLMatrixActionDiscreteAttribute", 0)))
                 .ToArray();
 
+            var expertDiscreteActionInfos = GetMethodsWithAttribute(classSymbol, "RLMatrixExpertActionDiscreteAttribute")
+                .Select(m => new ActionInfo(
+                    m.Name,
+                    GetAttributeArgument<int>(m, "RLMatrixExpertActionDiscreteAttribute", 0, -1)))
+                .ToArray();
+
             var continuousActionInfos = continuousActionMethods
                 .Select(m => new ContinuousActionInfo(
                     m.Name,
@@ -69,11 +75,12 @@ namespace RLMatrix.Toolkit
                     m.ReturnType.SpecialType == SpecialType.System_Single))
                 .ToArray();
 
-            return new EnvironmentModel(
+            return new EnvironmentModel( /* noop timestamp update */ 
                 className,
                 namespaceName,
                 observationInfos,
                 discreteActionInfos,
+                expertDiscreteActionInfos,
                 continuousActionInfos,
                 rewardMethods.Select(m => m.Name).ToArray(),
                 doneMethod.Name,
@@ -145,6 +152,8 @@ namespace {{model.NamespaceName}}
         private bool _rlMatrixEpisodeTerminated;
         private bool _rlMatrixEpisodeTruncated;
         private (Action<int> method, int maxValue)[] _actionMethodsWithCaps;
+        private Func<int>[] _expertActionMethods;
+        public bool UseExpertActions { get; set; } = false;
         private Action<float>[] _continuousActionMethods;
 
 {{actionProperties}}
@@ -342,6 +351,23 @@ namespace {{model.NamespaceName}}
                 sb.AppendLine("            };");
             }
 
+            // expert action methods
+            if (model.ExpertDiscreteActions != null && model.ExpertDiscreteActions.Any())
+            {
+                sb.AppendLine();
+                sb.AppendLine("            _expertActionMethods = new Func<int>[]");
+                sb.AppendLine("            {");
+                foreach (var action in model.ExpertDiscreteActions)
+                {
+                    sb.AppendLine($"                {action.MethodName},");
+                }
+                sb.AppendLine("            };");
+            }
+            else
+            {
+                sb.AppendLine("            _expertActionMethods = new Func<int>[0];");
+            }
+
             return sb.ToString();
         }
 
@@ -355,12 +381,28 @@ namespace {{model.NamespaceName}}
             _stepsSoft++;
             _stepsHard++;
 
-            for (int i = 0; i < _actionMethodsWithCaps.Length; i++)
+            if (UseExpertActions && _expertActionMethods != null && _expertActionMethods.Length > 0)
             {
-                int cappedAction = Math.Min(actionsIds[i], _actionMethodsWithCaps[i].maxValue - 1);
-                _actionMethodsWithCaps[i].method(cappedAction);
+                // call expert methods and apply their actions
+                var expertIds = new int[_expertActionMethods.Length];
+                for (int i = 0; i < _expertActionMethods.Length; i++)
+                {
+                    int expertAction = _expertActionMethods[i]();
+                    int cappedAction = Math.Min(expertAction, _actionMethodsWithCaps[i].maxValue - 1);
+                    _actionMethodsWithCaps[i].method(cappedAction);
+                    expertIds[i] = expertAction;
+                }
+                _poolingHelper.SetAction(expertIds.Select(a => (float)a).ToArray());
             }
-            _poolingHelper.SetAction(actionsIds.Select(a => (float)a).ToArray());
+            else
+            {
+                for (int i = 0; i < _actionMethodsWithCaps.Length; i++)
+                {
+                    int cappedAction = Math.Min(actionsIds[i], _actionMethodsWithCaps[i].maxValue - 1);
+                    _actionMethodsWithCaps[i].method(cappedAction);
+                }
+                _poolingHelper.SetAction(actionsIds.Select(a => (float)a).ToArray());
+            }
 
             float stepReward = {{rewardSum}};
             _poolingHelper.CollectObservation(stepReward);
@@ -460,6 +502,7 @@ namespace {{model.NamespaceName}}
             public string NamespaceName { get; }
             public ObservationInfo[] Observations { get; }
             public ActionInfo[] DiscreteActions { get; }
+            public ActionInfo[] ExpertDiscreteActions { get; }
             public ContinuousActionInfo[] ContinuousActions { get; }
             public string[] RewardMethods { get; }
             public string DoneMethodName { get; }
@@ -467,13 +510,14 @@ namespace {{model.NamespaceName}}
             public bool IsContinuous { get; }
 
             public EnvironmentModel(string className, string namespaceName, ObservationInfo[] observations,
-                ActionInfo[] discreteActions, ContinuousActionInfo[] continuousActions, string[] rewardMethods,
+                ActionInfo[] discreteActions, ActionInfo[] expertDiscreteActions, ContinuousActionInfo[] continuousActions, string[] rewardMethods,
                 string doneMethodName, string resetMethodName, bool isContinuous)
             {
                 ClassName = className;
                 NamespaceName = namespaceName;
                 Observations = observations;
                 DiscreteActions = discreteActions;
+                ExpertDiscreteActions = expertDiscreteActions;
                 ContinuousActions = continuousActions;
                 RewardMethods = rewardMethods;
                 DoneMethodName = doneMethodName;
